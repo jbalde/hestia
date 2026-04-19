@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
-import { Send, Bot, CalendarCheck, RotateCcw, History, ArrowLeft, MessageSquare } from "lucide-react";
+import { Send, Bot, CalendarCheck, RotateCcw, History, ArrowLeft, MessageSquare, Smartphone, Globe } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import ReactMarkdown from "react-markdown";
@@ -25,6 +25,7 @@ interface ConversationSummary {
   lastMessageAt?: string;
   createdAt: string;
   messageCount: number;
+  source: "web" | "telegram";
 }
 
 interface CreatedEvent {
@@ -212,7 +213,10 @@ function ChatInner() {
             <button key={conv.id} onClick={() => openDetail(conv)}
               className="w-full text-left p-3 bg-white rounded-xl border border-border hover:shadow-md transition-all"
             >
-              <p className="text-sm font-medium truncate">{conv.title || "Conversación sin título"}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium truncate flex-1">{conv.title || "Conversación sin título"}</p>
+                <SourceBadge source={conv.source} />
+              </div>
               <div className="flex items-center gap-2 mt-1">
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <MessageSquare className="w-3 h-3" />
@@ -241,7 +245,10 @@ function ChatInner() {
             <button onClick={() => setHistoryView("list")} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <p className="font-semibold text-sm flex-1 truncate">{detailConv.title || "Conversación"}</p>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <p className="font-semibold text-sm truncate">{detailConv.title || "Conversación"}</p>
+              <SourceBadge source={detailConv.source} />
+            </div>
             <button
               onClick={() => resumeConversation(detailConv)}
               className="flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors"
@@ -498,6 +505,23 @@ function ChatInner() {
         </p>
       </div>
     </div>
+  );
+}
+
+function SourceBadge({ source }: { source: "web" | "telegram" }) {
+  if (source === "telegram") {
+    return (
+      <span className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 shrink-0">
+        <Smartphone className="w-2.5 h-2.5" />
+        Telegram
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 shrink-0">
+      <Globe className="w-2.5 h-2.5" />
+      Web
+    </span>
   );
 }
 

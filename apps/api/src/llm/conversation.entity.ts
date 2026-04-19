@@ -27,6 +27,10 @@ export class ConversationEntity {
   @Column({ default: false })
   compacted: boolean;
 
+  /** Origin channel: web app or Telegram bot */
+  @Column({ default: "web" })
+  source: "web" | "telegram";
+
   @OneToMany(() => ChatMessageEntity, (msg) => msg.conversation, {
     cascade: true,
     eager: false,

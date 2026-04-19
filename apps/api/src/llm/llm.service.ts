@@ -73,7 +73,8 @@ export class LlmService {
   async chat(
     userId: string,
     message: string,
-    conversationId?: string
+    conversationId?: string,
+    source: "web" | "telegram" = "web"
   ): Promise<{ reply: string; conversationId: string; eventsCreated?: any[] }> {
     // 1. Resolve conversation
     let conversation: ConversationEntity;
@@ -81,9 +82,9 @@ export class LlmService {
       const found = await this.convRepo.findOne({
         where: { id: conversationId, userId },
       });
-      conversation = found ?? (await this.createConversation(userId));
+      conversation = found ?? (await this.createConversation(userId, source));
     } else {
-      conversation = await this.createConversation(userId);
+      conversation = await this.createConversation(userId, source);
     }
 
     // 2. Load full message history for this conversation
@@ -320,8 +321,8 @@ ${text}`;
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  private async createConversation(userId: string): Promise<ConversationEntity> {
-    const conv = this.convRepo.create({ userId, lastMessageAt: new Date() });
+  private async createConversation(userId: string, source: "web" | "telegram" = "web"): Promise<ConversationEntity> {
+    const conv = this.convRepo.create({ userId, source, lastMessageAt: new Date() });
     return this.convRepo.save(conv);
   }
 
@@ -414,6 +415,7 @@ ${text}`;
       lastMessageAt: conv.lastMessageAt,
       createdAt: conv.createdAt,
       compacted: conv.compacted,
+      source: conv.source,
       messageCount,
     };
   }

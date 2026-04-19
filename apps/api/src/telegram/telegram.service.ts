@@ -271,7 +271,8 @@ export class TelegramService
         const { reply, conversationId } = await this.llmService.chat(
           contact.userId,
           text,
-          contact.conversationId ?? undefined
+          contact.conversationId ?? undefined,
+          "telegram"
         );
         // Persist conversationId so next message continues the same thread
         if (conversationId && contact.conversationId !== conversationId) {

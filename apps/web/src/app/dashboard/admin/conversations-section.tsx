@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { MessageSquare, ChevronDown, ArrowLeft, Bot, User } from "lucide-react";
+import { MessageSquare, ChevronDown, ArrowLeft, Bot, User, Smartphone, Globe } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import ReactMarkdown from "react-markdown";
@@ -16,6 +16,7 @@ interface ConvSummary {
   createdAt: string;
   messageCount: number;
   compacted: boolean;
+  source: "web" | "telegram";
   user: { id: string; name: string; color: string } | null;
 }
 
@@ -110,7 +111,18 @@ export function ConversationsSection() {
                         onClick={() => openDetail(conv)}
                         className="w-full text-left p-3 bg-muted/30 rounded-xl border border-border hover:bg-muted/60 transition-colors"
                       >
-                        <p className="text-sm font-medium truncate">{conv.title || "Sin título"}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate flex-1">{conv.title || "Sin título"}</p>
+                          {conv.source === "telegram" ? (
+                            <span className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 shrink-0">
+                              <Smartphone className="w-2.5 h-2.5" />Telegram
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 shrink-0">
+                              <Globe className="w-2.5 h-2.5" />Web
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-muted-foreground flex items-center gap-0.5">
                             <MessageSquare className="w-3 h-3" />
