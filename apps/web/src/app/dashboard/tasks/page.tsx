@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // ── Tipos ─────────────────────────────────────────────────────────
 
@@ -25,6 +27,7 @@ interface RecurrenceRule {
 interface Task {
   id: string;
   title: string;
+  description?: string;
   status: string;
   priority: string;
   visibility: string;
@@ -37,6 +40,7 @@ interface FamilyMember { id: string; name: string; color: string }
 
 export interface TaskFormValues {
   title: string;
+  description: string;
   priority: "low" | "medium" | "high";
   visibility: "personal" | "shared";
   assigneeId?: string;
@@ -72,6 +76,7 @@ function recurrenceLabel(r: RecurrenceRule): string {
 function taskToForm(t: Task): TaskFormValues {
   return {
     title: t.title,
+    description: t.description ?? "",
     priority: t.priority as TaskFormValues["priority"],
     visibility: t.visibility as TaskFormValues["visibility"],
     assigneeId: t.assigneeId,
@@ -81,7 +86,7 @@ function taskToForm(t: Task): TaskFormValues {
 }
 
 const EMPTY_FORM: TaskFormValues = {
-  title: "", priority: "medium", visibility: "personal",
+  title: "", description: "", priority: "medium", visibility: "personal",
   assigneeId: undefined, dueDate: "", recurrence: null,
 };
 
@@ -112,6 +117,7 @@ export default function TasksPage() {
     setSaving(true);
     const body = {
       title: formValues.title.trim(),
+      description: formValues.description.trim() || undefined,
       priority: formValues.priority,
       visibility: formValues.visibility,
       assigneeId: formValues.assigneeId || undefined,
@@ -230,6 +236,13 @@ export default function TasksPage() {
                   <p className={cn("text-sm font-medium", isDone && "line-through text-muted-foreground")}>
                     {task.title}
                   </p>
+                  {task.description && (
+                    <div className="prose prose-xs max-w-none text-muted-foreground [&>*]:text-xs [&>*]:leading-snug [&>ul]:pl-4 [&>ol]:pl-4 [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded [&_a]:text-indigo-600 [&_strong]:text-foreground">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {task.description}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", priorityColors[task.priority])}>
                       {priorityLabel[task.priority]}
@@ -323,6 +336,15 @@ function TaskForm({
         onKeyDown={(e) => e.key === "Enter" && onSubmit()}
         placeholder="Nombre de la tarea..."
         className="w-full px-3 py-2 rounded-xl border border-border bg-muted/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+      />
+
+      {/* Descripción */}
+      <textarea
+        value={values.description}
+        onChange={(e) => set("description", e.target.value)}
+        placeholder="Descripción (opcional)..."
+        rows={2}
+        className="w-full px-3 py-2 rounded-xl border border-border bg-muted/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
       />
 
       {/* Prioridad */}
