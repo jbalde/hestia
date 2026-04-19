@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import {
   CheckSquare, ShoppingCart, ChefHat, Calendar,
   MessageCircle, UtensilsCrossed, Users, Clock, AlertCircle, Sparkles,
-  ChevronRight,
+  ChevronRight, BarChart2,
 } from "lucide-react";
 import { format, isToday, isBefore, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
@@ -37,7 +37,8 @@ const quickLinks = [
   { href: "/dashboard/recipes",  label: "Recetas",    icon: ChefHat,          color: "bg-orange-50 text-orange-600",  desc: "Recetas guardadas" },
   { href: "/dashboard/menu",     label: "Menú",       icon: UtensilsCrossed,  color: "bg-teal-50 text-teal-600",      desc: "Planificación semanal" },
   { href: "/dashboard/calendar", label: "Calendario", icon: Calendar,         color: "bg-green-50 text-green-600",    desc: "Eventos y citas" },
-  { href: "/dashboard/chat",     label: "Hestia IA",  icon: MessageCircle,    color: "bg-purple-50 text-purple-600",  desc: "Chatea con IA" },
+  { href: "/dashboard/chat",     label: "Hestia IA",    icon: MessageCircle,    color: "bg-purple-50 text-purple-600",  desc: "Chatea con IA" },
+  { href: "/dashboard/stats",   label: "Estadísticas", icon: BarChart2,         color: "bg-amber-50 text-amber-600",    desc: "Resumen semanal" },
 ];
 
 function greeting() {

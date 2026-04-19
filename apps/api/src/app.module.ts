@@ -17,6 +17,7 @@ import { SettingsModule } from "./settings/settings.module";
 import { AdminModule } from "./admin/admin.module";
 import { CronJobsModule } from "./cron-jobs/cron-jobs.module";
 import { MenuPlanModule } from "./menu-plan/menu-plan.module";
+import { StatsModule } from "./stats/stats.module";
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { MenuPlanModule } from "./menu-plan/menu-plan.module";
     AdminModule,
     CronJobsModule,
     MenuPlanModule,
+    StatsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
