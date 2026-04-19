@@ -1377,6 +1377,7 @@ __metadata:
     "@nestjs/schematics": "npm:^10.2.3"
     "@nestjs/swagger": "npm:^8.1.0"
     "@nestjs/testing": "npm:^10.4.15"
+    "@nestjs/throttler": "npm:^6.5.0"
     "@nestjs/typeorm": "npm:^10.0.2"
     "@types/bcryptjs": "npm:^2.4.6"
     "@types/better-sqlite3": "npm:^7.6.13"
@@ -2079,6 +2080,17 @@ __metadata:
     "@nestjs/platform-express":
       optional: true
   checksum: 10c0/cb3d0f3997b1c08ef7263f25beff0f0ba8af9f718361cede5c2b0a72ec0c3baadba8fcc92ec18c735171550b9e950c9e66b43e81ea62273c1ca6c82aa54e9715
+  languageName: node
+  linkType: hard
+
+"@nestjs/throttler@npm:^6.5.0":
+  version: 6.5.0
+  resolution: "@nestjs/throttler@npm:6.5.0"
+  peerDependencies:
+    "@nestjs/common": ^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0
+    "@nestjs/core": ^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0 || ^11.0.0
+    reflect-metadata: ^0.1.13 || ^0.2.0
+  checksum: 10c0/bd755e765d020189b24fd8cb8a5989b47d7856abdc8efc881d73dd76e71b8e6e4466e532464434fd1199a106bf4752bda3d0036ef4aa13aa61e9317f60658da8
   languageName: node
   linkType: hard
 

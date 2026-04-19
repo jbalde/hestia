@@ -57,15 +57,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="font-bold text-indigo-600 text-lg">Hestia</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/settings"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            title="Ajustes"
+          >
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ring-2 ring-transparent transition-all",
+                pathname === "/dashboard/settings" && "ring-indigo-400"
+              )}
               style={{ backgroundColor: user.color }}
             >
               {user.name[0]}
             </div>
             <span className="text-sm font-medium hidden sm:block">{user.name}</span>
-          </div>
+          </Link>
           {user.name === "Juan" && (
             <Link
               href="/dashboard/admin"
