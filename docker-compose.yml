@@ -4,45 +4,35 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     ports:
-      - "3001:3001"
+      - "9999:9999"
     environment:
       NODE_ENV: production
-      PORT: 3001
+      PORT: 9999
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-3650d}
       DATABASE_PATH: /app/data/hestia.db
-      LLM_API_URL: ${LLM_API_URL:-http://ollama:11434/v1}
-      LLM_MODEL: ${LLM_MODEL:-llama3.2}
+      #LLM_API_URL: ${LLM_API_URL:-http://ollama:11434/v1}
+      #LLM_MODEL: ${LLM_MODEL:-llama3.2}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      WEB_APP_URL: ${WEB_APP_URL:-http://localhost:3000}
+      WEB_APP_URL: ${WEB_APP_URL:-http://mini.local:10000}
     volumes:
       - api-data:/app/data
     restart: unless-stopped
-    depends_on:
-      - ollama
+
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://mini.local:9999/api/v1}
     ports:
-      - "3000:3000"
+      - "10000:3000"
     environment:
       NODE_ENV: production
     restart: unless-stopped
     depends_on:
       - api
 
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama-data:/root/.ollama
-    restart: unless-stopped
-
 volumes:
   api-data:
-  ollama-data:

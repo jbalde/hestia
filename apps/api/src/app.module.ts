@@ -29,7 +29,7 @@ import { MenuPlanModule } from "./menu-plan/menu-plan.module";
         type: "better-sqlite3",
         database: config.get("DATABASE_PATH", "./data/hestia.db"),
         entities: [__dirname + "/**/*.entity{.ts,.js}"],
-        synchronize: config.get("NODE_ENV") !== "production",
+        synchronize: true,
         logging: config.get("NODE_ENV") === "development",
       }),
       inject: [ConfigService],

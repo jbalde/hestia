@@ -3,6 +3,17 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { MealPlanEntryEntity } from "./menu-plan-entry.entity";
 
+interface UpsertData {
+  weekStart: string;
+  dayOfWeek: number;
+  mealType: string;
+  entryType?: string;
+  recipeId?: string | null;
+  recipeName?: string | null;
+  linkedCalendarEventId?: string | null;
+  linkedCalendarEventTitle?: string | null;
+}
+
 @Injectable()
 export class MenuPlanService {
   constructor(
@@ -14,18 +25,31 @@ export class MenuPlanService {
     return this.repo.find({ where: { weekStart }, order: { dayOfWeek: "ASC" } });
   }
 
-  async upsertMeal(
-    userId: string,
-    data: { weekStart: string; dayOfWeek: number; mealType: string; recipeId: string; recipeName: string }
-  ) {
+  async upsertMeal(userId: string, data: UpsertData) {
     let entry = await this.repo.findOne({
       where: { weekStart: data.weekStart, dayOfWeek: data.dayOfWeek, mealType: data.mealType },
     });
+
+    const entryType = data.entryType ?? "recipe";
+
     if (entry) {
-      entry.recipeId   = data.recipeId;
-      entry.recipeName = data.recipeName;
+      entry.entryType                 = entryType;
+      entry.recipeId                  = data.recipeId ?? null;
+      entry.recipeName                = data.recipeName ?? null;
+      entry.linkedCalendarEventId     = data.linkedCalendarEventId ?? null;
+      entry.linkedCalendarEventTitle  = data.linkedCalendarEventTitle ?? null;
     } else {
-      entry = this.repo.create({ ...data, createdById: userId });
+      entry = this.repo.create({
+        weekStart:                data.weekStart,
+        dayOfWeek:                data.dayOfWeek,
+        mealType:                 data.mealType,
+        entryType,
+        recipeId:                 data.recipeId ?? null,
+        recipeName:               data.recipeName ?? null,
+        linkedCalendarEventId:    data.linkedCalendarEventId ?? null,
+        linkedCalendarEventTitle: data.linkedCalendarEventTitle ?? null,
+        createdById:              userId,
+      });
     }
     return this.repo.save(entry);
   }
@@ -50,11 +74,15 @@ export class MenuPlanService {
       if (!existing) {
         const entry = this.repo.create({
           weekStart,
-          dayOfWeek:   prev.dayOfWeek,
-          mealType:    prev.mealType,
-          recipeId:    prev.recipeId,
-          recipeName:  prev.recipeName,
-          createdById: userId,
+          dayOfWeek:                prev.dayOfWeek,
+          mealType:                 prev.mealType,
+          entryType:                prev.entryType ?? "recipe",
+          recipeId:                 prev.recipeId,
+          recipeName:               prev.recipeName,
+          // calendar event links are week-specific — don't clone them
+          linkedCalendarEventId:    null,
+          linkedCalendarEventTitle: null,
+          createdById:              userId,
         });
         created.push(await this.repo.save(entry));
       }

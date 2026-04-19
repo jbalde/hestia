@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:24
 RUN corepack enable
 WORKDIR /app
 
@@ -6,9 +6,9 @@ COPY package.json yarn.lock .yarnrc.yml turbo.json ./
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 
-RUN yarn install --immutable
+RUN yarn install
 
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+ARG NEXT_PUBLIC_API_URL=http://mini.local:10000/api/v1
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 

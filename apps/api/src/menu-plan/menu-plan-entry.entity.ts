@@ -17,12 +17,23 @@ export class MealPlanEntryEntity {
   @Column()
   mealType: string;
 
-  @Column()
-  recipeId: string;
+  /** "recipe" | "eating_out" */
+  @Column({ default: "recipe" })
+  entryType: string;
+
+  @Column({ nullable: true, type: "text" })
+  recipeId: string | null;
 
   /** Denormalised for quick display without a join */
-  @Column()
-  recipeName: string;
+  @Column({ nullable: true, type: "text" })
+  recipeName: string | null;
+
+  @Column({ nullable: true, type: "text" })
+  linkedCalendarEventId: string | null;
+
+  /** Denormalised calendar event title */
+  @Column({ nullable: true, type: "text" })
+  linkedCalendarEventTitle: string | null;
 
   @Column()
   createdById: string;

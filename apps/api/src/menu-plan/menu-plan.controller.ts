@@ -18,7 +18,16 @@ export class MenuPlanController {
   @Put()
   upsertMeal(
     @Request() req: any,
-    @Body() body: { weekStart: string; dayOfWeek: number; mealType: string; recipeId: string; recipeName: string }
+    @Body() body: {
+      weekStart: string;
+      dayOfWeek: number;
+      mealType: string;
+      entryType?: string;
+      recipeId?: string | null;
+      recipeName?: string | null;
+      linkedCalendarEventId?: string | null;
+      linkedCalendarEventTitle?: string | null;
+    }
   ) {
     return this.service.upsertMeal(req.user.userId, body);
   }
