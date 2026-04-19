@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Param, UseGuards, Request } from "@nestjs/common";
+import { Controller, Post, Get, Delete, Body, Param, UseGuards, Request, ForbiddenException } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { LlmService } from "./llm.service";
@@ -23,9 +23,19 @@ export class LlmController {
     return this.llmService.getConversations(req.user.userId);
   }
 
+  @Get("conversations/all")
+  getAllConversations(@Request() req: any) {
+    return this.llmService.getAllConversationsAdmin(req.user.userId);
+  }
+
   @Get("conversations/:id/messages")
   getMessages(@Request() req: any, @Param("id") id: string) {
     return this.llmService.getConversationMessages(req.user.userId, id);
+  }
+
+  @Get("conversations/:id/messages/admin")
+  getMessagesAdmin(@Request() req: any, @Param("id") id: string) {
+    return this.llmService.getConversationMessagesAdmin(req.user.userId, id);
   }
 
   @Get("memories")

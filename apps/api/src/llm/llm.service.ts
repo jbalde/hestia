@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, Logger } from "@nestjs/common";
+import { Injectable, InternalServerErrorException, ForbiddenException, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { LessThan, Repository } from "typeorm";
 import { Cron } from "@nestjs/schedule";
@@ -8,6 +8,7 @@ import { ConversationMemoryEntity } from "./conversation-memory.entity";
 import { SettingsService, LLM_KEYS } from "../settings/settings.service";
 import { ContextBuilderService } from "./context-builder.service";
 import { CalendarService } from "../calendar/calendar.service";
+import { UsersService } from "../users/users.service";
 
 interface LLMMessage {
   role: "system" | "user" | "assistant";
@@ -58,6 +59,7 @@ export class LlmService {
     private readonly settingsService: SettingsService,
     private readonly contextBuilder: ContextBuilderService,
     private readonly calendarService: CalendarService,
+    private readonly usersService: UsersService,
     @InjectRepository(ConversationEntity)
     private readonly convRepo: Repository<ConversationEntity>,
     @InjectRepository(ChatMessageEntity)
@@ -379,16 +381,55 @@ ${text}`;
   // ── Conversation list / detail ─────────────────────────────────────────────
 
   async getConversations(userId: string) {
-    return this.convRepo.find({
-      where:  { userId },
-      order:  { updatedAt: "DESC" },
-      select: ["id", "title", "createdAt", "updatedAt"],
+    const convs = await this.convRepo.find({
+      where: { userId },
+      order: { lastMessageAt: "DESC" },
     });
+    return Promise.all(convs.map((conv) => this.withMessageCount(conv)));
+  }
+
+  async getAllConversationsAdmin(requestingUserId: string) {
+    const requestingUser = await this.usersService.findById(requestingUserId);
+    if (requestingUser.name !== "Juan") throw new ForbiddenException();
+
+    const [convs, users] = await Promise.all([
+      this.convRepo.find({ order: { lastMessageAt: "DESC" } }),
+      this.usersService.findAll(),
+    ]);
+    const userMap = new Map(users.map((u) => [u.id, { id: u.id, name: u.name, color: u.color }]));
+
+    return Promise.all(
+      convs.map(async (conv) => ({
+        ...(await this.withMessageCount(conv)),
+        user: userMap.get(conv.userId) ?? null,
+      }))
+    );
+  }
+
+  private async withMessageCount(conv: ConversationEntity) {
+    const messageCount = await this.msgRepo.count({ where: { conversationId: conv.id } });
+    return {
+      id: conv.id,
+      title: conv.title,
+      lastMessageAt: conv.lastMessageAt,
+      createdAt: conv.createdAt,
+      compacted: conv.compacted,
+      messageCount,
+    };
   }
 
   async getConversationMessages(userId: string, conversationId: string) {
     const conv = await this.convRepo.findOne({ where: { id: conversationId, userId } });
     if (!conv) return [];
+    return this.msgRepo.find({
+      where: { conversationId },
+      order: { createdAt: "ASC" },
+    });
+  }
+
+  async getConversationMessagesAdmin(requestingUserId: string, conversationId: string) {
+    const requestingUser = await this.usersService.findById(requestingUserId);
+    if (requestingUser.name !== "Juan") throw new ForbiddenException();
     return this.msgRepo.find({
       where: { conversationId },
       order: { createdAt: "ASC" },

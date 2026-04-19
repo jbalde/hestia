@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { CronSection } from "./cron-section";
+import { ConversationsSection } from "./conversations-section";
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -318,6 +319,9 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* ── Historial de conversaciones ── */}
+      <ConversationsSection />
     </div>
   );
 }
