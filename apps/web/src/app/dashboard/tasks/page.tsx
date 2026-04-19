@@ -12,7 +12,7 @@ import { es } from "date-fns/locale";
 
 // ── Tipos ─────────────────────────────────────────────────────────
 
-type RecurrenceType = "daily" | "every_n_days" | "weekly" | "monthly" | "yearly";
+type RecurrenceType = "daily" | "weekly_window" | "every_n_days" | "weekly" | "monthly" | "yearly";
 
 interface RecurrenceRule {
   type: RecurrenceType;
@@ -61,6 +61,7 @@ const priorityLabel: Record<string, string> = {
 function recurrenceLabel(r: RecurrenceRule): string {
   switch (r.type) {
     case "daily": return "Cada día";
+    case "weekly_window": return "Cada semana";
     case "every_n_days": return `Cada ${r.interval ?? 2} días`;
     case "weekly": return `Cada ${DAYS_ES[r.dayOfWeek ?? 0]}`;
     case "monthly": return `Día ${r.dayOfMonth ?? 1} cada mes`;
@@ -480,8 +481,9 @@ function RecurrencePicker({
           <div className="grid grid-cols-1 gap-1.5">
             {([
               ["daily", "Cada día"],
+              ["weekly_window", "Cada semana (cualquier día)"],
               ["every_n_days", "Cada X días"],
-              ["weekly", "Día de la semana"],
+              ["weekly", "Día concreto de la semana"],
               ["monthly", "Día del mes"],
               ["yearly", "Fecha del año"],
             ] as [RecurrenceType, string][]).map(([t, label]) => (

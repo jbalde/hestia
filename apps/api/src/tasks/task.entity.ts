@@ -7,11 +7,12 @@ import {
 } from "typeorm";
 
 export type RecurrenceType =
-  | "daily"        // cada día
-  | "every_n_days" // cada N días (ej. cada 2 días)
-  | "weekly"       // un día concreto de la semana
-  | "monthly"      // un día concreto del mes
-  | "yearly";      // un día concreto del año
+  | "daily"          // cada día
+  | "weekly_window"  // una vez a la semana (cualquier día)
+  | "every_n_days"   // cada N días (ej. cada 2 días)
+  | "weekly"         // un día concreto de la semana
+  | "monthly"        // un día concreto del mes
+  | "yearly";        // un día concreto del año
 
 export interface RecurrenceRule {
   type: RecurrenceType;

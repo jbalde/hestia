@@ -6,6 +6,8 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
+export type ShoppingListCategory = "hogar" | "decoracion" | "ocio" | "otros";
+
 @Entity("shopping_lists")
 export class ShoppingListEntity {
   @PrimaryGeneratedColumn("uuid")
@@ -16,6 +18,15 @@ export class ShoppingListEntity {
 
   @Column({ nullable: true })
   store: string;
+
+  @Column({ default: "otros" })
+  category: ShoppingListCategory;
+
+  @Column({ default: "active" })
+  status: "active" | "archived";
+
+  @Column({ nullable: true })
+  archivedAt: Date;
 
   @Column({ type: "simple-json", default: "[]" })
   memberIds: string[];

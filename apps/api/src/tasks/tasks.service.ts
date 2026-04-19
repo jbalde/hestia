@@ -126,6 +126,15 @@ export function calculateNextDueDate(rule: RecurrenceRule, from: Date): Date {
       next.setDate(next.getDate() + 1);
       break;
 
+    case "weekly_window": {
+      // Avanzar al lunes de la semana siguiente
+      const jsDay = next.getDay(); // 0=dom … 6=sáb
+      const currentDay = jsDay === 0 ? 6 : jsDay - 1; // 0=lun … 6=dom
+      const daysToNextMonday = 7 - currentDay;
+      next.setDate(next.getDate() + daysToNextMonday);
+      break;
+    }
+
     case "every_n_days":
       next.setDate(next.getDate() + (rule.interval ?? 2));
       break;

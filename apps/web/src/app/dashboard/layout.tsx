@@ -90,13 +90,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
+      {/* Main content — padding-bottom leaves room for the nav + safe area */}
+      <main className="flex-1 overflow-auto pb-[calc(4rem+env(safe-area-inset-bottom))]">
         {children}
       </main>
 
       {/* Bottom navigation (mobile) */}
-      <nav className="sticky bottom-0 z-50 bg-white border-t border-border safe-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="grid grid-cols-7 max-w-lg mx-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -106,13 +106,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center py-2 px-1 gap-1 transition-colors",
+                  "flex flex-col items-center justify-center py-3 px-1 gap-1 transition-colors min-h-[3.5rem]",
                   isActive
                     ? "text-indigo-600"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-5 h-5 shrink-0" />
                 <span className="text-[10px] font-medium leading-none">{item.label}</span>
               </Link>
             );
