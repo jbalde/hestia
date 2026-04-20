@@ -32,9 +32,18 @@ const TYPE_COLORS: Record<string, string> = {
   other:       "#6b7280",
 };
 
-const TIME_PATTERN = /\b\d{1,2}:\d{2}\b/g;
+const TIME_PATTERN    = /\b\d{1,2}:\d{2}\b/g;
+const ADD_VERBS       = /\b(añ[ae]d[ei]r?|agrega?r?|crea?r?|apunta?r?|anota?r?|mete?r?|guarda?r?|pon(?:me)?)\b/i;
+const CAL_NOUNS       = /\b(calendario|agenda)\b/i;
+const EVENT_NOUNS     = /\b(evento|cita|reuni[oó]n|cumplea[nñ]os|recordatorio)\b/i;
+
 function looksLikeSchedule(text: string): boolean {
-  return (text.match(TIME_PATTERN) ?? []).length >= 2;
+  const times = (text.match(TIME_PATTERN) ?? []).length;
+  if (times >= 2) return true;                                // agenda con varios horarios
+  if (ADD_VERBS.test(text) && CAL_NOUNS.test(text)) return true;  // "añade al calendario..."
+  if (ADD_VERBS.test(text) && EVENT_NOUNS.test(text)) return true; // "crea un evento/cita..."
+  if (times >= 1 && (CAL_NOUNS.test(text) || EVENT_NOUNS.test(text))) return true; // "tengo una reunión a las 10:00"
+  return false;
 }
 
 function extractJson(raw: string): string {
@@ -257,8 +266,17 @@ ${transcript}`;
   // ── Calendar event extraction ──────────────────────────────────────────────
 
   private async extractAndCreateEvents(userId: string, text: string): Promise<any[]> {
-    const today = new Date().toISOString().split("T")[0] as string;
+    const now = new Date();
+    const today = now.toISOString().split("T")[0] as string;
     const currentYear = today.substring(0, 4);
+
+    // Build a reference calendar for the next 14 days so the LLM can resolve day names
+    const dayNames = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+    const nextDays = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() + i);
+      return `${dayNames[d.getDay()]} ${d.toISOString().split("T")[0]}`;
+    }).join(", ");
 
     const extractionPrompt = `Extrae todos los eventos del siguiente texto como un JSON array.
 Responde ÚNICAMENTE con el JSON array. Sin texto adicional, sin explicaciones, sin markdown.
@@ -267,7 +285,8 @@ Formato exacto de cada elemento:
 {"title":"nombre del evento","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","allDay":false,"type":"appointment"}
 
 Reglas:
-- date: YYYY-MM-DD. Año actual: ${currentYear}. Si no hay fecha usa: ${today}.
+- date: YYYY-MM-DD. Hoy es ${today} (${dayNames[now.getDay()]}). Próximos días: ${nextDays}.
+- Cuando el texto diga un día de la semana (lunes, martes, etc.) usa la fecha correspondiente más próxima de la lista anterior.
 - startTime y endTime: formato 24h HH:MM. Si el evento no tiene hora concreta, omite ambos y pon allDay:true.
 - Si solo hay hora de inicio (no hay hora de fin), incluye solo startTime y pon allDay:false.
 - type: usa exactamente uno de: appointment, task, reminder, birthday, other.

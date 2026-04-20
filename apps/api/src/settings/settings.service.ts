@@ -15,6 +15,10 @@ export const TELEGRAM_KEYS = {
   BOT_TOKEN: "telegram.botToken",
 } as const;
 
+export const SYSTEM_KEYS = {
+  TIMEZONE: "system.timezone",
+} as const;
+
 @Injectable()
 export class SettingsService implements OnModuleInit {
   constructor(
@@ -31,6 +35,7 @@ export class SettingsService implements OnModuleInit {
       [LLM_KEYS.TEMPERATURE]: "0.7",
       [LLM_KEYS.MAX_TOKENS]: "1024",
       [TELEGRAM_KEYS.BOT_TOKEN]: this.config.get("TELEGRAM_BOT_TOKEN", ""),
+      [SYSTEM_KEYS.TIMEZONE]: "Europe/Madrid",
     };
 
     for (const [key, value] of Object.entries(defaults)) {

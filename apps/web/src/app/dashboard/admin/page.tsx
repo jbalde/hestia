@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/auth";
 import { api } from "@/lib/api";
 import {
   Save, RotateCcw, Cpu, AlertCircle, CheckCircle2,
-  Send, Eye, EyeOff, UserCheck, Trash2, Clock, Users,
+  Send, Eye, EyeOff, UserCheck, Trash2, Clock, Users, Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -18,6 +18,19 @@ import { ConversationsSection } from "./conversations-section";
 
 interface LlmConfig { apiUrl: string; model: string; temperature: string; maxTokens: string }
 interface TelegramConfig { botToken: string; isRunning: boolean }
+interface SystemConfig { timezone: string }
+
+const TIMEZONE_OPTIONS = [
+  { label: "Madrid / España (Europe/Madrid)",         value: "Europe/Madrid" },
+  { label: "Canarias (Atlantic/Canary)",              value: "Atlantic/Canary" },
+  { label: "Londres (Europe/London)",                 value: "Europe/London" },
+  { label: "París / Berlín (Europe/Paris)",           value: "Europe/Paris" },
+  { label: "Buenos Aires (America/Argentina/Buenos_Aires)", value: "America/Argentina/Buenos_Aires" },
+  { label: "Ciudad de México (America/Mexico_City)",  value: "America/Mexico_City" },
+  { label: "Nueva York (America/New_York)",           value: "America/New_York" },
+  { label: "Los Ángeles (America/Los_Angeles)",       value: "America/Los_Angeles" },
+  { label: "UTC",                                     value: "UTC" },
+];
 interface FamilyMember { id: string; name: string; color: string }
 interface TelegramContact {
   id: string;
@@ -46,17 +59,20 @@ export default function AdminPage() {
 
   const [llm, setLlm]         = useState<LlmConfig>({ apiUrl: "", model: "", temperature: "0.7", maxTokens: "1024" });
   const [telegram, setTelegram] = useState<TelegramConfig>({ botToken: "", isRunning: false });
+  const [system, setSystem]     = useState<SystemConfig>({ timezone: "Europe/Madrid" });
   const [contacts, setContacts] = useState<TelegramContact[]>([]);
   const [members, setMembers]   = useState<FamilyMember[]>([]);
 
-  const [loading, setLoading]       = useState(true);
-  const [savingLlm, setSavingLlm]   = useState(false);
-  const [savingTg, setSavingTg]     = useState(false);
-  const [llmStatus, setLlmStatus]   = useState<"idle" | "success" | "error">("idle");
-  const [tgStatus, setTgStatus]     = useState<"idle" | "success" | "error">("idle");
-  const [testResult, setTestResult] = useState<"idle" | "testing" | "ok" | "fail">("idle");
-  const [showToken, setShowToken]   = useState(false);
-  const [pairingId, setPairingId]   = useState<string | null>(null);
+  const [loading, setLoading]           = useState(true);
+  const [savingLlm, setSavingLlm]       = useState(false);
+  const [savingTg, setSavingTg]         = useState(false);
+  const [savingSystem, setSavingSystem] = useState(false);
+  const [llmStatus, setLlmStatus]       = useState<"idle" | "success" | "error">("idle");
+  const [tgStatus, setTgStatus]         = useState<"idle" | "success" | "error">("idle");
+  const [systemStatus, setSystemStatus] = useState<"idle" | "success" | "error">("idle");
+  const [testResult, setTestResult]     = useState<"idle" | "testing" | "ok" | "fail">("idle");
+  const [showToken, setShowToken]       = useState(false);
+  const [pairingId, setPairingId]       = useState<string | null>(null);
 
   const loadContacts = useCallback(async () => {
     const data = await api.get<TelegramContact[]>("/admin/telegram-contacts");
@@ -68,9 +84,10 @@ export default function AdminPage() {
     Promise.all([
       api.get<LlmConfig>("/admin/llm-config"),
       api.get<TelegramConfig>("/admin/telegram-config"),
+      api.get<SystemConfig>("/admin/system-config"),
       api.get<TelegramContact[]>("/admin/telegram-contacts"),
       api.get<FamilyMember[]>("/users"),
-    ]).then(([l, t, c, m]) => { setLlm(l); setTelegram(t); setContacts(c); setMembers(m); })
+    ]).then(([l, t, s, c, m]) => { setLlm(l); setTelegram(t); setSystem(s); setContacts(c); setMembers(m); })
       .finally(() => setLoading(false));
   }, [user, router]);
 
@@ -93,6 +110,16 @@ export default function AdminPage() {
       setTimeout(() => setTgStatus("idle"), 3000);
     } catch { setTgStatus("error"); }
     finally { setSavingTg(false); }
+  };
+
+  const handleSaveSystem = async () => {
+    setSavingSystem(true); setSystemStatus("idle");
+    try {
+      await api.put("/admin/system-config", system);
+      setSystemStatus("success");
+      setTimeout(() => setSystemStatus("idle"), 3000);
+    } catch { setSystemStatus("error"); }
+    finally { setSavingSystem(false); }
   };
 
   const handleTest = async () => {
@@ -134,6 +161,41 @@ export default function AdminPage() {
           <h1 className="text-xl font-bold">Panel de administración</h1>
           <p className="text-xs text-muted-foreground">Solo accesible para Juan</p>
         </div>
+      </div>
+
+      {/* ── Sistema ── */}
+      <div className="bg-white rounded-2xl border border-border p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Globe className="w-4 h-4 text-indigo-600" />
+          <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+            Sistema
+          </h2>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Zona horaria</label>
+          <select
+            value={system.timezone}
+            onChange={(e) => setSystem({ timezone: e.target.value })}
+            className="w-full px-3 py-2 rounded-xl border border-border bg-muted/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          >
+            {TIMEZONE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Se usa para programar recordatorios y calcular "hoy" en notificaciones automáticas.
+          </p>
+        </div>
+
+        <button onClick={handleSaveSystem} disabled={savingSystem}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
+          <Save className="w-4 h-4" />
+          {savingSystem ? "Guardando..." : "Guardar"}
+        </button>
+
+        {systemStatus === "success" && <StatusMsg ok text="Zona horaria actualizada. Los recordatorios usarán la nueva zona." />}
+        {systemStatus === "error"   && <StatusMsg ok={false} text="Error al guardar la configuración del sistema" />}
       </div>
 
       {/* ── LLM Config ── */}

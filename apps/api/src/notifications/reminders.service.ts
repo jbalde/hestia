@@ -1,18 +1,52 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Between, Repository } from "typeorm";
-import { Cron } from "@nestjs/schedule";
+import { SchedulerRegistry } from "@nestjs/schedule";
+import { CronJob } from "cron";
+import { Between, LessThan, Repository } from "typeorm";
 import { TaskEntity } from "../tasks/task.entity";
 import { CalendarEventEntity } from "../calendar/calendar-event.entity";
 import { UserEntity } from "../users/user.entity";
 import { TelegramService } from "../telegram/telegram.service";
 import { NotificationsService } from "./notifications.service";
+import { SettingsService, SYSTEM_KEYS } from "../settings/settings.service";
 
 // Track events already reminded in this process lifetime to avoid duplicates
 const remindedEventIds = new Set<string>();
 
+// ── Timezone-aware date helpers ───────────────────────────────────────────────
+
+function getTzOffsetMs(timezone: string, date: Date): number {
+  const utc = new Date(date.toLocaleString("en-US", { timeZone: "UTC" }));
+  const tz  = new Date(date.toLocaleString("en-US", { timeZone: timezone }));
+  return tz.getTime() - utc.getTime();
+}
+
+function getDayBoundsInTz(timezone: string): { dayStart: Date; dayEnd: Date } {
+  const now      = new Date();
+  const offsetMs = getTzOffsetMs(timezone, now);
+  const shifted  = new Date(now.getTime() + offsetMs);
+
+  const start = new Date(shifted); start.setUTCHours(0,  0,  0,   0);
+  const end   = new Date(shifted); end.setUTCHours(23, 59, 59, 999);
+
+  return {
+    dayStart: new Date(start.getTime() - offsetMs),
+    dayEnd:   new Date(end.getTime()   - offsetMs),
+  };
+}
+
+function getMidnightInTz(timezone: string): Date {
+  return getDayBoundsInTz(timezone).dayStart;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+const JOB_DAILY_DIGEST  = "reminders.dailyDigest";
+const JOB_EVENT_SOON    = "reminders.eventSoon";
+const JOB_OVERDUE       = "reminders.overdue";
+
 @Injectable()
-export class RemindersService {
+export class RemindersService implements OnModuleInit {
   private readonly logger = new Logger(RemindersService.name);
 
   constructor(
@@ -24,21 +58,47 @@ export class RemindersService {
     private readonly userRepo: Repository<UserEntity>,
     private readonly telegramService: TelegramService,
     private readonly notificationsService: NotificationsService,
+    private readonly settingsService: SettingsService,
+    private readonly schedulerRegistry: SchedulerRegistry,
   ) {}
 
-  // ── Resumen diario — 8:00 AM ──────────────────────────────────────
+  async onModuleInit() {
+    const tz = (await this.settingsService.get(SYSTEM_KEYS.TIMEZONE)) ?? "Europe/Madrid";
+    this.registerCrons(tz);
+    this.logger.log(`Reminders registered with timezone: ${tz}`);
+  }
 
-  @Cron("0 8 * * *")
+  // Called by AdminController when timezone changes
+  async reinitCrons(timezone: string) {
+    this.registerCrons(timezone);
+    this.logger.log(`Reminders re-registered with timezone: ${timezone}`);
+  }
+
+  private registerCrons(timezone: string) {
+    const jobs: [string, string, () => void][] = [
+      [JOB_DAILY_DIGEST, "0 8 * * *",    () => this.dailyDigest()],
+      [JOB_EVENT_SOON,   "*/15 * * * *", () => this.eventSoonReminders()],
+      [JOB_OVERDUE,      "0 9 * * *",    () => this.overdueTasksReminder()],
+    ];
+
+    for (const [name, expression, fn] of jobs) {
+      try { this.schedulerRegistry.deleteCronJob(name); } catch { /* not registered yet */ }
+      const job = new CronJob(expression, fn, null, true, timezone);
+      this.schedulerRegistry.addCronJob(name, job);
+    }
+  }
+
+  // ── Resumen diario — 8:00 en la zona configurada ──────────────────
+
   async dailyDigest() {
     this.logger.log("Running daily digest reminders");
+    const tz = (await this.settingsService.get(SYSTEM_KEYS.TIMEZONE)) ?? "Europe/Madrid";
+    const { dayStart, dayEnd } = getDayBoundsInTz(tz);
     const users = await this.userRepo.find();
-
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
 
     for (const user of users) {
       try {
-        await this.sendDailyDigestToUser(user, todayStart, todayEnd);
+        await this.sendDailyDigestToUser(user, dayStart, dayEnd);
       } catch (err) {
         this.logger.warn(`Daily digest failed for ${user.name}: ${err}`);
       }
@@ -62,19 +122,21 @@ export class RemindersService {
         .getMany(),
     ]);
 
-    // Filter calendar events that include this user (or global events)
     const userEvents = events.filter(
       (e) => !e.assigneeIds?.length || e.assigneeIds.includes(user.id)
     );
 
     if (tasks.length === 0 && userEvents.length === 0) return;
 
+    const tz = (await this.settingsService.get(SYSTEM_KEYS.TIMEZONE)) ?? "Europe/Madrid";
     const lines: string[] = [`☀️ *Buenos días, ${user.name}!* Aquí tienes tu resumen de hoy:\n`];
 
     if (userEvents.length > 0) {
       lines.push("📅 *Eventos hoy:*");
       for (const ev of userEvents) {
-        const time = ev.allDay ? "Todo el día" : new Date(ev.startDate).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+        const time = ev.allDay
+          ? "Todo el día"
+          : new Date(ev.startDate).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: tz });
         lines.push(`  • ${ev.title} (${time})`);
       }
       lines.push("");
@@ -102,11 +164,12 @@ export class RemindersService {
 
   // ── Avisos 30 min antes de eventos — cada 15 min ──────────────────
 
-  @Cron("*/15 * * * *")
   async eventSoonReminders() {
-    const now     = new Date();
-    const in15    = new Date(now.getTime() + 15  * 60 * 1000);
-    const in45    = new Date(now.getTime() + 45  * 60 * 1000);
+    const now  = new Date();
+    const in15 = new Date(now.getTime() + 15 * 60 * 1000);
+    const in45 = new Date(now.getTime() + 45 * 60 * 1000);
+
+    const tz = (await this.settingsService.get(SYSTEM_KEYS.TIMEZONE)) ?? "Europe/Madrid";
 
     const upcoming = await this.calRepo
       .createQueryBuilder("e")
@@ -121,9 +184,9 @@ export class RemindersService {
       if (remindedEventIds.has(ev.id)) continue;
       remindedEventIds.add(ev.id);
 
-      const startTime = new Date(ev.startDate).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+      const startTime   = new Date(ev.startDate).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: tz });
       const minutesLeft = Math.round((new Date(ev.startDate).getTime() - now.getTime()) / 60000);
-      const message = `⏰ En ${minutesLeft} min: *${ev.title}* a las ${startTime}`;
+      const message     = `⏰ En ${minutesLeft} min: *${ev.title}* a las ${startTime}`;
 
       const targetUserIds = ev.assigneeIds?.length
         ? ev.assigneeIds
@@ -144,9 +207,9 @@ export class RemindersService {
 
   // ── Tareas vencidas — cada día a las 9:00 ────────────────────────
 
-  @Cron("0 9 * * *")
   async overdueTasksReminder() {
-    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const tz  = (await this.settingsService.get(SYSTEM_KEYS.TIMEZONE)) ?? "Europe/Madrid";
+    const now = getMidnightInTz(tz);
     const users = await this.userRepo.find();
 
     for (const user of users) {
@@ -160,7 +223,8 @@ export class RemindersService {
 
       if (overdue.length === 0) continue;
 
-      const message = `⚠️ Tienes *${overdue.length} tarea${overdue.length > 1 ? "s" : ""} vencida${overdue.length > 1 ? "s" : ""}*:\n` +
+      const message =
+        `⚠️ Tienes *${overdue.length} tarea${overdue.length > 1 ? "s" : ""} vencida${overdue.length > 1 ? "s" : ""}*:\n` +
         overdue.slice(0, 5).map((t) => `  • ${t.title}`).join("\n") +
         (overdue.length > 5 ? `\n  _...y ${overdue.length - 5} más_` : "");
 

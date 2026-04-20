@@ -84,22 +84,10 @@ function ChatInner() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // On mount: restore previous conversation from localStorage
+  // On mount: always start a fresh conversation
   useEffect(() => {
-    const stored = localStorage.getItem(CONV_KEY);
-    if (!stored) { setLoadingHistory(false); return; }
-
-    api.get<Message[]>(`/llm/conversations/${stored}/messages`)
-      .then((history) => {
-        if (history.length > 0) {
-          setConversationId(stored);
-          setMessages(history);
-        } else {
-          localStorage.removeItem(CONV_KEY);
-        }
-      })
-      .catch(() => localStorage.removeItem(CONV_KEY))
-      .finally(() => setLoadingHistory(false));
+    localStorage.removeItem(CONV_KEY);
+    setLoadingHistory(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

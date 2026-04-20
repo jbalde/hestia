@@ -3,9 +3,10 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { IsString, IsNumberString, IsOptional, IsUrl } from "class-validator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { AdminGuard } from "./admin.guard";
-import { SettingsService, LLM_KEYS, TELEGRAM_KEYS } from "../settings/settings.service";
+import { SettingsService, LLM_KEYS, TELEGRAM_KEYS, SYSTEM_KEYS } from "../settings/settings.service";
 import { TelegramService } from "../telegram/telegram.service";
 import { CronJobsService } from "../cron-jobs/cron-jobs.service";
+import { RemindersService } from "../notifications/reminders.service";
 
 class UpdateLlmConfigDto {
   @IsUrl({ require_tld: false })
@@ -27,6 +28,11 @@ class UpdateTelegramConfigDto {
   botToken: string;
 }
 
+class UpdateSystemConfigDto {
+  @IsString()
+  timezone: string;
+}
+
 @ApiTags("admin")
 @Controller("admin")
 @UseGuards(JwtAuthGuard, AdminGuard)
@@ -35,8 +41,24 @@ export class AdminController {
   constructor(
     private readonly settingsService: SettingsService,
     private readonly telegramService: TelegramService,
-    private readonly cronJobsService: CronJobsService
+    private readonly cronJobsService: CronJobsService,
+    private readonly remindersService: RemindersService,
   ) {}
+
+  // ── Sistema ───────────────────────────────────────────────────────
+
+  @Get("system-config")
+  async getSystemConfig() {
+    const timezone = await this.settingsService.get(SYSTEM_KEYS.TIMEZONE);
+    return { timezone: timezone ?? "Europe/Madrid" };
+  }
+
+  @Put("system-config")
+  async updateSystemConfig(@Body() dto: UpdateSystemConfigDto) {
+    await this.settingsService.set(SYSTEM_KEYS.TIMEZONE, dto.timezone);
+    await this.remindersService.reinitCrons(dto.timezone);
+    return { message: "Configuración del sistema actualizada", timezone: dto.timezone };
+  }
 
   // ── LLM ──────────────────────────────────────────────────────────
 

@@ -18,6 +18,6 @@ import { TelegramModule } from "../telegram/telegram.module";
   ],
   providers: [NotificationsService, RemindersService],
   controllers: [NotificationsController],
-  exports: [NotificationsService],
+  exports: [NotificationsService, RemindersService],
 })
 export class NotificationsModule {}
