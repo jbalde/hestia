@@ -12,6 +12,12 @@ interface UpsertData {
   recipeName?: string | null;
   linkedCalendarEventId?: string | null;
   linkedCalendarEventTitle?: string | null;
+  /** Empty = all members */
+  memberIds?: string[];
+}
+
+function sortedKey(ids: string[]): string {
+  return [...ids].sort().join(",");
 }
 
 @Injectable()
@@ -26,31 +32,39 @@ export class MenuPlanService {
   }
 
   async upsertMeal(userId: string, data: UpsertData) {
-    let entry = await this.repo.findOne({
+    const memberIds = data.memberIds ?? [];
+    const memberKey = sortedKey(memberIds);
+    const entryType = data.entryType ?? "recipe";
+
+    // Find existing entries for this slot and match by memberIds
+    const slotEntries = await this.repo.find({
       where: { weekStart: data.weekStart, dayOfWeek: data.dayOfWeek, mealType: data.mealType },
     });
 
-    const entryType = data.entryType ?? "recipe";
+    const existing = slotEntries.find((e) => sortedKey(e.memberIds ?? []) === memberKey);
 
-    if (entry) {
-      entry.entryType                 = entryType;
-      entry.recipeId                  = data.recipeId ?? null;
-      entry.recipeName                = data.recipeName ?? null;
-      entry.linkedCalendarEventId     = data.linkedCalendarEventId ?? null;
-      entry.linkedCalendarEventTitle  = data.linkedCalendarEventTitle ?? null;
-    } else {
-      entry = this.repo.create({
-        weekStart:                data.weekStart,
-        dayOfWeek:                data.dayOfWeek,
-        mealType:                 data.mealType,
-        entryType,
-        recipeId:                 data.recipeId ?? null,
-        recipeName:               data.recipeName ?? null,
-        linkedCalendarEventId:    data.linkedCalendarEventId ?? null,
-        linkedCalendarEventTitle: data.linkedCalendarEventTitle ?? null,
-        createdById:              userId,
-      });
+    if (existing) {
+      existing.entryType                = entryType;
+      existing.recipeId                 = data.recipeId ?? null;
+      existing.recipeName               = data.recipeName ?? null;
+      existing.linkedCalendarEventId    = data.linkedCalendarEventId ?? null;
+      existing.linkedCalendarEventTitle = data.linkedCalendarEventTitle ?? null;
+      existing.memberIds                = memberIds;
+      return this.repo.save(existing);
     }
+
+    const entry = this.repo.create({
+      weekStart:                data.weekStart,
+      dayOfWeek:                data.dayOfWeek,
+      mealType:                 data.mealType,
+      entryType,
+      recipeId:                 data.recipeId ?? null,
+      recipeName:               data.recipeName ?? null,
+      linkedCalendarEventId:    data.linkedCalendarEventId ?? null,
+      linkedCalendarEventTitle: data.linkedCalendarEventTitle ?? null,
+      memberIds,
+      createdById:              userId,
+    });
     return this.repo.save(entry);
   }
 
@@ -68,10 +82,12 @@ export class MenuPlanService {
     const created: MealPlanEntryEntity[] = [];
 
     for (const prev of prevEntries) {
-      const existing = await this.repo.findOne({
+      const memberKey = sortedKey(prev.memberIds ?? []);
+      const slotEntries = await this.repo.find({
         where: { weekStart, dayOfWeek: prev.dayOfWeek, mealType: prev.mealType },
       });
-      if (!existing) {
+      const alreadyExists = slotEntries.some((e) => sortedKey(e.memberIds ?? []) === memberKey);
+      if (!alreadyExists) {
         const entry = this.repo.create({
           weekStart,
           dayOfWeek:                prev.dayOfWeek,
@@ -79,9 +95,9 @@ export class MenuPlanService {
           entryType:                prev.entryType ?? "recipe",
           recipeId:                 prev.recipeId,
           recipeName:               prev.recipeName,
-          // calendar event links are week-specific — don't clone them
           linkedCalendarEventId:    null,
           linkedCalendarEventTitle: null,
+          memberIds:                prev.memberIds ?? [],
           createdById:              userId,
         });
         created.push(await this.repo.save(entry));

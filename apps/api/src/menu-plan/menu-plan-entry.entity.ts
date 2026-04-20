@@ -35,6 +35,10 @@ export class MealPlanEntryEntity {
   @Column({ nullable: true, type: "text" })
   linkedCalendarEventTitle: string | null;
 
+  /** Empty array = todos los miembros; IDs concretos = solo esos miembros */
+  @Column({ type: "simple-json", default: "[]" })
+  memberIds: string[];
+
   @Column()
   createdById: string;
 

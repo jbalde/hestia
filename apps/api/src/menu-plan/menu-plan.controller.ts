@@ -27,6 +27,7 @@ export class MenuPlanController {
       recipeName?: string | null;
       linkedCalendarEventId?: string | null;
       linkedCalendarEventTitle?: string | null;
+      memberIds?: string[];
     }
   ) {
     return this.service.upsertMeal(req.user.userId, body);

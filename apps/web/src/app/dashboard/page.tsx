@@ -83,8 +83,8 @@ export default function DashboardPage() {
     }).catch(() => {}).finally(() => setLoadingToday(false));
   }, []);
 
-  const askHestia = () => {
-    router.push("/dashboard/chat?q=" + encodeURIComponent("¿Qué tengo para hoy?"));
+  const askHestia = (q: string) => {
+    router.push("/dashboard/chat?q=" + encodeURIComponent(q));
   };
 
   const hasToday = todayEvents.length > 0 || dueTasks.length > 0;
@@ -110,7 +110,7 @@ export default function DashboardPage() {
             <span className="text-base">📅</span> Hoy
           </h2>
           <button
-            onClick={askHestia}
+            onClick={() => askHestia("¿Qué tengo para hoy?")}
             className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -207,14 +207,23 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Ask Hestia full-width button */}
-        <button
-          onClick={askHestia}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium transition-colors border-t border-indigo-100"
-        >
-          <Sparkles className="w-4 h-4" />
-          ¿Qué tengo para hoy? — Preguntarle a Hestia
-        </button>
+        {/* Ask Hestia quick buttons */}
+        <div className="grid grid-cols-2 border-t border-indigo-100">
+          <button
+            onClick={() => askHestia("¿Qué tengo para hoy?")}
+            className="flex items-center justify-center gap-1.5 px-3 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-medium transition-colors border-r border-indigo-100"
+          >
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            ¿Qué tengo hoy?
+          </button>
+          <button
+            onClick={() => askHestia("¿Qué comemos hoy?")}
+            className="flex items-center justify-center gap-1.5 px-3 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-medium transition-colors"
+          >
+            <span className="text-sm">🍽️</span>
+            ¿Qué comemos hoy?
+          </button>
+        </div>
       </div>
 
       {/* ── Quick links ── */}

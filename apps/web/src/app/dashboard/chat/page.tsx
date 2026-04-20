@@ -54,6 +54,7 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
 };
 
 const QUICK_SUGGESTIONS = [
+  "¿Qué comemos hoy?",
   "¿Qué tareas tengo hoy?",
   "Sugiere una receta fácil",
   "¿Qué hay en la lista de la compra?",
