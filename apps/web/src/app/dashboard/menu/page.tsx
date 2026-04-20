@@ -129,16 +129,20 @@ export default function MenuPage() {
 
   // Close picker on outside click / scroll / resize
   useEffect(() => {
-    const close = (e: MouseEvent) => {
+    const close = (e: PointerEvent) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) closePicker();
     };
     const closeOnMove = () => closePicker();
-    document.addEventListener("mousedown", close);
-    window.addEventListener("scroll", closeOnMove, true);
+    // pointerdown fires before click on all platforms, so the picker isn't
+    // open yet when the opening tap fires — avoids the iOS open-then-close race.
+    document.addEventListener("pointerdown", close);
+    // No capture flag: ignores scroll events from inner containers (the
+    // horizontal grid) which fire on mobile tap and would close the picker.
+    window.addEventListener("scroll", closeOnMove);
     window.addEventListener("resize", closeOnMove);
     return () => {
-      document.removeEventListener("mousedown", close);
-      window.removeEventListener("scroll", closeOnMove, true);
+      document.removeEventListener("pointerdown", close);
+      window.removeEventListener("scroll", closeOnMove);
       window.removeEventListener("resize", closeOnMove);
     };
   }, [closePicker]);
