@@ -1,15 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
-import { KeyRound, CheckCircle2, AlertCircle } from "lucide-react";
+import { KeyRound, CheckCircle2, AlertCircle, Bell, BellOff } from "lucide-react";
+import { subscribeToPush, unsubscribeFromPush, isPushSubscribed } from "@/lib/push";
 
 type Status = "idle" | "saving" | "success" | "error" | "ratelimit";
+type PushStatus = "unknown" | "subscribed" | "unsubscribed" | "loading" | "unsupported";
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
+
+  const [pushStatus, setPushStatus] = useState<PushStatus>("unknown");
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushStatus("unsupported");
+      return;
+    }
+    isPushSubscribed().then((sub) => setPushStatus(sub ? "subscribed" : "unsubscribed"));
+  }, []);
+
+  const handlePushToggle = async () => {
+    setPushStatus("loading");
+    try {
+      if (await isPushSubscribed()) {
+        await unsubscribeFromPush();
+        setPushStatus("unsubscribed");
+      } else {
+        const ok = await subscribeToPush();
+        setPushStatus(ok ? "subscribed" : "unsubscribed");
+      }
+    } catch {
+      setPushStatus("unsubscribed");
+    }
+  };
 
   const [currentPin, setCurrentPin] = useState("");
   const [newPin, setNewPin] = useState("");
@@ -70,6 +97,42 @@ export default function SettingsPage() {
           <p className="text-xs text-muted-foreground">Miembro de la familia</p>
         </div>
       </div>
+
+      {/* Notificaciones push */}
+      {pushStatus !== "unsupported" && (
+        <div className="bg-white rounded-2xl border border-border p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-indigo-600" />
+            <p className="font-semibold text-sm">Notificaciones push</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Recibe avisos de eventos próximos, tareas vencidas y el resumen diario directamente en este dispositivo.
+          </p>
+          <button
+            onClick={handlePushToggle}
+            disabled={pushStatus === "loading" || pushStatus === "unknown"}
+            className={cn(
+              "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50",
+              pushStatus === "subscribed"
+                ? "bg-red-50 text-red-700 hover:bg-red-100"
+                : "bg-indigo-600 text-white hover:bg-indigo-700"
+            )}
+          >
+            {pushStatus === "subscribed" ? (
+              <><BellOff className="w-4 h-4" /> Desactivar notificaciones</>
+            ) : pushStatus === "loading" ? (
+              "Configurando..."
+            ) : (
+              <><Bell className="w-4 h-4" /> Activar notificaciones</>
+            )}
+          </button>
+          {pushStatus === "subscribed" && (
+            <p className="text-xs text-center text-green-600 flex items-center justify-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Notificaciones activadas en este dispositivo
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Cambiar PIN */}
       <div className="bg-white rounded-2xl border border-border p-4 space-y-4">
