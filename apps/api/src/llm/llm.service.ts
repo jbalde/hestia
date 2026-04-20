@@ -5,7 +5,7 @@ import { Cron } from "@nestjs/schedule";
 import { ConversationEntity } from "./conversation.entity";
 import { ChatMessageEntity } from "./chat-message.entity";
 import { ConversationMemoryEntity } from "./conversation-memory.entity";
-import { SettingsService, LLM_KEYS } from "../settings/settings.service";
+import { SettingsService, LLM_KEYS, SYSTEM_KEYS } from "../settings/settings.service";
 import { ContextBuilderService } from "./context-builder.service";
 import { CalendarService } from "../calendar/calendar.service";
 import { UsersService } from "../users/users.service";
@@ -59,6 +59,16 @@ function extractJson(raw: string): string {
 
 /** One hour in milliseconds */
 const IDLE_THRESHOLD_MS = 60 * 60 * 1000;
+
+// Converts a local date+time string (as typed by the user) to UTC using the given timezone.
+// e.g. "2026-04-20" + "10:00" in "Europe/Madrid" (UTC+2) → 08:00 UTC
+function localTimeToUtc(dateStr: string, timeStr: string, timezone: string): Date {
+  const approxUtc = new Date(`${dateStr}T${timeStr}:00Z`);
+  const utcMs  = new Date(approxUtc.toLocaleString("en-US", { timeZone: "UTC" })).getTime();
+  const tzMs   = new Date(approxUtc.toLocaleString("en-US", { timeZone: timezone })).getTime();
+  const offsetMs = tzMs - utcMs;
+  return new Date(approxUtc.getTime() - offsetMs);
+}
 
 @Injectable()
 export class LlmService {
@@ -266,6 +276,7 @@ ${transcript}`;
   // ── Calendar event extraction ──────────────────────────────────────────────
 
   private async extractAndCreateEvents(userId: string, text: string): Promise<any[]> {
+    const tz  = (await this.settingsService.get(SYSTEM_KEYS.TIMEZONE)) ?? "Europe/Madrid";
     const now = new Date();
     const today = now.toISOString().split("T")[0] as string;
     const currentYear = today.substring(0, 4);
@@ -315,10 +326,10 @@ ${text}`;
       try {
         const dateStr   = ev.date ?? today;
         const startDate = ev.allDay || !ev.startTime
-          ? new Date(`${dateStr}T00:00:00`)
-          : new Date(`${dateStr}T${ev.startTime}:00`);
+          ? new Date(`${dateStr}T00:00:00Z`)
+          : localTimeToUtc(dateStr, ev.startTime, tz);
         const endDate   = ev.endTime && !ev.allDay
-          ? new Date(`${dateStr}T${ev.endTime}:00`)
+          ? localTimeToUtc(dateStr, ev.endTime, tz)
           : undefined;
 
         const result = await this.calendarService.create(userId, {
