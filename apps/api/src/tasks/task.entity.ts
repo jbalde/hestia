@@ -69,6 +69,12 @@ export class TaskEntity {
   @Column({ type: "simple-json", default: "[]" })
   tags: string[];
 
+  @Column({ nullable: true })
+  categoryId: string;
+
+  @Column({ nullable: true })
+  archivedAt: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

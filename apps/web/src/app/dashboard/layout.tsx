@@ -52,10 +52,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Top header */}
       <header className="sticky top-0 z-50 bg-white border-b border-border px-4 flex flex-col safe-top">
         <div className="py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <span className="text-xl">🏠</span>
           <span className="font-bold text-indigo-600 text-lg">Hestia</span>
-        </div>
+        </Link>
         <div className="flex items-center gap-3">
           <Link
             href="/dashboard/settings"

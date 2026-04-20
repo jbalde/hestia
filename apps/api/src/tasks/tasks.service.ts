@@ -1,17 +1,41 @@
-import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { Injectable, NotFoundException, ForbiddenException, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
+import { Cron } from "@nestjs/schedule";
 import { TaskEntity, RecurrenceRule } from "./task.entity";
 import { TaskListEntity } from "./task-list.entity";
+import { TaskCategoryEntity } from "./task-category.entity";
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger(TasksService.name);
+
   constructor(
     @InjectRepository(TaskEntity)
     private readonly taskRepo: Repository<TaskEntity>,
     @InjectRepository(TaskListEntity)
-    private readonly listRepo: Repository<TaskListEntity>
+    private readonly listRepo: Repository<TaskListEntity>,
+    @InjectRepository(TaskCategoryEntity)
+    private readonly categoryRepo: Repository<TaskCategoryEntity>
   ) {}
+
+  // ── Categorías ───────────────────────────────────────────────────
+
+  getCategories() {
+    return this.categoryRepo.find({ order: { createdAt: "ASC" } });
+  }
+
+  async createCategory(data: { name: string; icon?: string; color?: string }) {
+    const cat = this.categoryRepo.create(data);
+    return this.categoryRepo.save(cat);
+  }
+
+  async deleteCategory(id: string) {
+    const cat = await this.categoryRepo.findOne({ where: { id } });
+    if (!cat) throw new NotFoundException("Categoría no encontrada");
+    await this.categoryRepo.remove(cat);
+    return { message: "Categoría eliminada" };
+  }
 
   // ── Listas ────────────────────────────────────────────────────────
 
@@ -35,13 +59,26 @@ export class TasksService {
 
   // ── Tareas ────────────────────────────────────────────────────────
 
+  async getArchivedTasks(userId: string) {
+    return this.taskRepo
+      .createQueryBuilder("task")
+      .where(
+        "(task.ownerId = :userId OR task.assigneeId = :userId OR task.visibility = :shared)",
+        { userId, shared: "shared" }
+      )
+      .andWhere("task.archivedAt IS NOT NULL")
+      .orderBy("task.archivedAt", "DESC")
+      .getMany();
+  }
+
   async getTasks(userId: string, listId?: string) {
     const qb = this.taskRepo
       .createQueryBuilder("task")
       .where(
         "(task.ownerId = :userId OR task.assigneeId = :userId OR task.visibility = :shared)",
         { userId, shared: "shared" }
-      );
+      )
+      .andWhere("task.archivedAt IS NULL");
     if (listId) qb.andWhere("task.listId = :listId", { listId });
     return qb.orderBy("task.createdAt", "DESC").getMany();
   }
@@ -58,6 +95,7 @@ export class TasksService {
       recurrence?: RecurrenceRule;
       listId?: string;
       tags?: string[];
+      categoryId?: string;
     }
   ) {
     const task = this.taskRepo.create({
@@ -111,6 +149,26 @@ export class TasksService {
     }
     await this.taskRepo.remove(task);
     return { message: "Tarea eliminada" };
+  }
+
+  // Archiva tareas completadas hace 14 días o más. Se ejecuta cada día a las 3:00.
+  @Cron("0 3 * * *")
+  async archiveOldCompletedTasks() {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 14);
+
+    const result = await this.taskRepo
+      .createQueryBuilder()
+      .update(TaskEntity)
+      .set({ archivedAt: new Date() })
+      .where("status = :status", { status: "done" })
+      .andWhere("completedAt < :cutoff", { cutoff })
+      .andWhere("archivedAt IS NULL")
+      .execute();
+
+    if (result.affected) {
+      this.logger.log(`Archivadas ${result.affected} tarea(s) completadas hace más de 14 días`);
+    }
   }
 }
 
